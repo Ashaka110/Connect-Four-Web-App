@@ -1,10 +1,8 @@
 
-console.log("hello from index.ts");
-
-
 import express, { Request, Response } from 'express';
 import { Pool } from 'pg';
 import cors from 'cors';
+import createTables from './migration';
 
 const app = express();
 const port = 5000;
@@ -39,7 +37,9 @@ app.get('/users', async (req: Request, res: Response) => {
 
 
 
-
+console.log("hello from index.ts");
+console.log("hello from index.ts");
+console.log("hello from index.ts");
 
 function test(): void {
   console.log(process.env.TEST_VALUE);
@@ -48,6 +48,13 @@ console.log("hello from index.ts");
 
 test();
 
-app.listen(port, () => {
-  console.log(`Server running on http://localhost:${port}`);
-});
+
+
+async function start() {
+    await createTables(pool);
+    app.listen(port, () => {
+        console.log(`Server running on http://localhost:${port}`);
+    });
+}
+
+start();
