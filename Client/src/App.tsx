@@ -1,77 +1,98 @@
 import { useState, useEffect } from "react";
 import "./App.css";
 import axios from "axios";
+import { io } from "socket.io-client";
 
-interface User {
-  id: number;
-  name: string;
-  email: string;
-}
+const socket = io("http://localhost:3000");
 
 function App() {
-  const [users, setUsers] = useState<User[]>([]);
-  const [name, setName] = useState<string>("");
-  const [email, setEmail] = useState<string>("");
+  const [code, setCode] = useState("");
+  const [joinedCode, setJoinedCode] = useState("");
+  const [name, setName] = useState("");
+  const [players, setPlayers] = useState<{
+    player_one_name?: string;
+    player_two_name?: string;
+  }>({});
 
-  const fetchUsers = async () => {
-    try {
-      const response = await axios.get<User[]>("http://localhost:5000/users");
-      setUsers(response.data);
-    } catch (err) {
-      console.error(err);
-    }
+  const createLobby = async () => {
+    const { data } = await axios.post("http://localhost:3000/lobbies");
+    console.log(data);
+    setJoinedCode(data.code);
   };
 
-  // Add a new user
-  const addUser = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const response = await axios.post<User>("http://localhost:5000/users", {
-        name,
-        email,
-      });
-      setUsers([...users, response.data]);
-      setName("");
-      setEmail("");
-    } catch (err) {
-      console.error(err);
-    }
+  const joinLobby = async () => {
+    await axios.post("http://localhost:3000/lobbies/join", {
+      code,
+    });
+
+    setJoinedCode(code);
   };
 
   useEffect(() => {
-    fetchUsers();
-  }, []);
+    if (!joinedCode || !name) return;
+
+    socket.emit("joinLobby", {
+      code: joinedCode,
+      name,
+    });
+
+    socket.on("lobbyUpdate", (data) => {
+      setPlayers(data);
+    });
+
+    socket.on("errorMessage", (msg) => {
+      alert(msg);
+      //clear codes
+      setJoinedCode("");
+      setCode("");
+    });
+
+    return () => {
+      socket.off("playerJoined");
+      socket.off("lobbyUpdate");
+      socket.off("errorMessage");
+    };
+  }, [joinedCode, name]);
+
+  if (joinedCode) {
+    return (
+      <div style={{ padding: 40 }}>
+        <h2>Lobby Code: {joinedCode}</h2>
+
+        <h3>Players:</h3>
+        <p>Player 1: {players.player_one_name || "Waiting..."}</p>
+        <p>Player 2: {players.player_two_name || "Waiting..."}</p>
+      </div>
+    );
+  }
 
   return (
-    <>
-      <h1>Users</h1>
-      <ul>
-        {users.map((user) => (
-          <li key={user.id}>
-            {user.name} - {user.email}
-          </li>
-        ))}
-      </ul>
+    <div style={{ padding: 40 }}>
+      <h2>Enter Your Name</h2>
+      <input
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        placeholder="Your Name"
+      />
 
-      <h2>Add User</h2>
-      <form onSubmit={addUser}>
+      <div style={{ marginTop: 20 }}>
+        <button onClick={createLobby} disabled={!name}>
+          Create Lobby
+        </button>
+      </div>
+
+      <div style={{ marginTop: 20 }}>
         <input
-          type="text"
-          placeholder="Name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          required
+          value={code}
+          onChange={(e) => setCode(e.target.value.toUpperCase())}
+          placeholder="Enter Code"
         />
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-        <button type="submit">Add User</button>
-      </form>
-    </>
+        x{" "}
+        <button onClick={joinLobby} disabled={!name}>
+          Join Lobby
+        </button>
+      </div>
+    </div>
   );
 }
 
