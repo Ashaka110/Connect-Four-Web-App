@@ -13,8 +13,7 @@ This application implements a basic two player lobby system.
 ### Known limitations:
 
 - The code entered currently is not validated to see if the lobby exists
-
-
+- Passwords are currently hardcoded and should be moved to a .env file
 
 ### Prerequisites
 
